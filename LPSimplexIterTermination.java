@@ -6,11 +6,9 @@ import com.alibaba.alink.common.comqueue.CompareCriterionFunction;
 public class LPSimplexIterTermination extends CompareCriterionFunction {
     @Override
     public boolean calc(ComContext context) {
-        Boolean complete = context.getObj(LPSimplexBatchOp.COMPLETE);
-        Boolean unbounded = context.getObj(LPSimplexBatchOp.UNBOUNDED);
-        System.out.print(complete ? "complete, ": "not complete, ");
-        System.out.println(unbounded && (!complete) ? "unbounded": "bounded");
-        if(complete || unbounded) {
+        double[] pivotRowList   =   context.getObj(LPSimplexBatchOp.PIVOT_ROW_VALUE);
+        if(pivotRowList[0]<0) {
+            System.out.println("completed");
             return true;
         }
         return false;
