@@ -43,8 +43,13 @@ public class LPSimplexBatchOp extends BatchOperator<LPSimplexBatchOp> implements
                         new AllReduce.SerializableBiConsumer<double[], double[]>() {
                     @Override
                     public void accept(double[] a, double[] b) {
-                        if(b[1]<a[1] && b[1]!=-1)
-                            a=b;
+                        if(a[0]==-1.0 ||
+                                (b[0]>-1.0 && b[1]<a[1]) ||
+                                (b[1]==a[1] && b[0]<a[0]))
+                        {
+                            for (int i = 0; i < a.length; ++i)
+                                a[i] = b[i];
+                        }
                     }
                 }))
                 .setCompareCriterionOfNode0(new LPSimplexIterTermination())
@@ -74,11 +79,10 @@ public class LPSimplexBatchOp extends BatchOperator<LPSimplexBatchOp> implements
 
         DataSet <Row> iterOutput = Input
                 .map((MapFunction<Row, Row>) row -> {
-                    System.out.println(row);
                     return row;
                 }).returns(new RowTypeInfo(Types.DOUBLE));
 
-        this.setOutput(iterOutput, new String[]{"output"});
+        this.setOutput(iterOutput, new String[]{"MinObject"});
 
         return this;
     }
