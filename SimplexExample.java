@@ -38,9 +38,9 @@ public class SimplexExample {
                 .setUnbounded(unbounded)
                 .setN(3)
                 .setMaxIter(10)
-                .setParallelism(1);
+                .setParallelism(3);
 
-        dOp.linkFrom(data).collect();
+        dOp.linkFrom(data).print();
     }
     public void test1() throws Exception {
         Row[] rows1 = new Row[]{
@@ -72,9 +72,9 @@ public class SimplexExample {
                 //.setUnbounded(unbounded)
                 .setN(3)
                 .setMaxIter(10)
-                .setParallelism(1);
+                .setParallelism(3);
 
-        dOp.linkFrom(data).collect();
+        dOp.linkFrom(data).print();
 
     }
 
