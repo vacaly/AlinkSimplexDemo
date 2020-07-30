@@ -7,12 +7,18 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Double.MAX_VALUE;
 
 public class LPSimplexCom extends ComputeFunction {
-    public static final double[] invalidRow = {-1,-1};
+    public static double[] invalidRow(int num) {
+        double[] invalid_row = new double[num+1];
+        Arrays.fill(invalid_row, -1.0);
+        return invalid_row;
+    }
+    
     @Override
     public void calc(ComContext context) {
         DenseVector objectiveRow;
@@ -22,6 +28,7 @@ public class LPSimplexCom extends ComputeFunction {
         int basisNum;
         int nextPivotCol;
         int nextPivotRow;
+        int rowLength;
 
         if(context.getStepNo()==1){
             /**
@@ -34,6 +41,7 @@ public class LPSimplexCom extends ComputeFunction {
             List<Row> basis             =   context.getObj(LPSimplexBatchOp.BASIS);
             List<Row> pseudoObjective   =   context.getObj(LPSimplexBatchOp.PSEUDO_OBJECTIVE);
             objectiveRow                =   new DenseVector(objective.size());
+            rowLength                   =   objectiveRow.size();
             basisNum                    =   basis.size();
             pseudoObjectiveRow          =   new DenseVector(pseudoObjective.size());
 
@@ -64,6 +72,7 @@ public class LPSimplexCom extends ComputeFunction {
             double[] pivotRowList   =   context.getObj(LPSimplexBatchOp.PIVOT_ROW_VALUE);
             int leavingVar          =   (int)pivotRowList[0];
             DenseVector pivotRow    =   list2vector(pivotRowList);
+            rowLength               =   pivotRow.size();
 
             tableau             =   applyPivot(tableau,pivotRow,enteringVar,leavingVar);
             objectiveRow        =   applyPivot(objectiveRow,pivotRow,enteringVar);
@@ -73,13 +82,10 @@ public class LPSimplexCom extends ComputeFunction {
             context.putObj(LPSimplexBatchOp.OBJECTIVE,objectiveRow);
             context.putObj(LPSimplexBatchOp.PSEUDO_OBJECTIVE,pseudoObjectiveRow);
 
-            if(context.getTaskId()==0) {
-                System.out.printf("step %d start leave %d enter %d, phase %d\n",context.getStepNo(),leavingVar,enteringVar,phase);
-                System.out.println("-----------------------tableau--------------------------");
-                linprogUtil.LPPrintTableau(tableau);
-                linprogUtil.LPPrintVector(objectiveRow);
-                linprogUtil.LPPrintVector(pseudoObjectiveRow);
-            }
+            if(context.getTaskId()==0)
+                System.out.printf("step %d start leave %d enter %d, phase %d\ncurrent basis is\n",context.getStepNo(),leavingVar,enteringVar,phase);
+            for(Tuple2<Integer,DenseVector> t: tableau)
+                System.out.printf("x_%d = %.2f\n",t.f0,t.f1.get(0));
         }
 
         /**
@@ -104,7 +110,7 @@ public class LPSimplexCom extends ComputeFunction {
         nextPivotRow = leaveVariableSelection(tableau,nextPivotCol,context);
         if(nextPivotRow==-1) {
             context.putObj(LPSimplexBatchOp.UNBOUNDED, true);
-            context.putObj(LPSimplexBatchOp.PIVOT_ROW_VALUE, invalidRow);
+            context.putObj(LPSimplexBatchOp.PIVOT_ROW_VALUE, invalidRow(rowLength));
         } else{
             context.putObj(LPSimplexBatchOp.PIVOT_ROW_VALUE,
                     vector2list(tableau.get(nextPivotRow),nextPivotCol));
@@ -150,7 +156,7 @@ public class LPSimplexCom extends ComputeFunction {
 
     private double[] vector2list(Tuple2<Integer,DenseVector> row, Integer pivotCol){
         if(pivotCol==-1)
-            return invalidRow;
+            return invalidRow(row.f1.size());
         DenseVector scaledRow = row.f1.scale(1/row.f1.get(pivotCol+1));
         return scaledRow.prefix((double)row.f0).getData();
     }
@@ -168,7 +174,6 @@ public class LPSimplexCom extends ComputeFunction {
         for(Tuple2<Integer,DenseVector> t: tableau){
             double c = t.f1.get(enteringVar+1);
             if(t.f0!=leavingVar && c!=0){
-                assert t.f1.size()==pivotRow.size();
                 t.f1.minusEqual(pivotRow.scale(c));
             }else if(t.f0==leavingVar){
                 t.f0 = enteringVar;
