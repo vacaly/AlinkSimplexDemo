@@ -77,10 +77,21 @@ public class appendSlack {
             }
         }
 
+
         if(upperBounds!=null) {
             for(Row upperBound : upperBounds) {
                 DenseVector constraint = DenseVector.zeros(varNum + freeNUm + 1);
-                constraint.set(1 + (Integer)upperBound.getField(0), (Double)upperBound.getField(1));
+                int i = (Integer)upperBound.getField(0);
+                double bound = (Double)upperBound.getField(1);
+                constraint.set(1 + i, 1);
+                constraint.set(0, bound);
+                if(lowerBounds!=null){
+                    for(Row lowerBound : lowerBounds) {
+                        if(i == (Integer) lowerBound.getField(0)) {
+                            constraint.set(0, bound - (Double) lowerBound.getField(1));
+                        }
+                    }
+                }
                 tableau.add(new Tuple2<>(varNum + freeNUm + mCount,constraint));
                 mCount++;
             }
